@@ -1,6 +1,7 @@
 package main
 
 import (
+	"FallingSand/sandsimulation"
 	"image/color"
 	"log"
 	"math/rand"
@@ -13,42 +14,21 @@ import (
 const (
 	screenWidth  = 1280
 	screenHeight = 720
-	gridWidth    = 640
-	gridHeight   = 360
-	cellSize     = 2
-	clickSize    = 20
+	gridWidth    = 320
+	gridHeight   = 180
+	cellSize     = 4
+	clickSize    = 10
 )
 
 type Game struct {
 	grid       [gridWidth][gridHeight]bool
 	imageCache *ebiten.Image
-}
-
-func randomSign() int {
-	return 2*rand.Intn(2) - 1
+	gridInfo   chan [gridWidth][gridHeight]bool
 }
 
 func (g *Game) Update() error {
-	for y := gridHeight - 2; y >= 0; y-- {
-		for x := 1; x < gridWidth-1; x++ {
-			if g.grid[x][y] && !g.grid[x][y+1] {
-				g.grid[x][y] = false
-				g.grid[x][y+1] = true
-			} else if g.grid[x][y] && g.grid[x][y+1] {
-				if !g.grid[x+1][y+1] && !g.grid[x-1][y+1] {
-					g.grid[x][y] = false
-					g.grid[x+randomSign()][y+1] = true
-				} else if !g.grid[x-1][y+1] {
-					g.grid[x][y] = false
-					g.grid[x-1][y+1] = true
-				} else if !g.grid[x+1][y+1] {
-					g.grid[x][y] = false
-					g.grid[x+1][y+1] = true
-				}
-			}
-		}
 
-	}
+	g.grid = <-g.gridInfo
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		mx, my := ebiten.CursorPosition()
@@ -61,6 +41,7 @@ func (g *Game) Update() error {
 			}
 		}
 	}
+	go sandsimulation.ContinueFall(g.grid, g.gridInfo)
 
 	return nil
 }
@@ -90,7 +71,9 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Falling Sand")
-	game := &Game{}
+	gridChannel := make(chan [gridWidth][gridHeight]bool)
+	game := &Game{gridInfo: gridChannel}
+	go sandsimulation.ContinueFall(game.grid, game.gridInfo)
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
