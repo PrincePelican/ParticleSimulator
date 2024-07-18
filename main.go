@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	screenWidth  = 1920
-	screenHeight = 1080
-	gridWidth    = 640
-	gridHeight   = 360
-	cellSize     = 3
+	screenWidth  = 1280
+	screenHeight = 720
+	gridWidth    = 1280
+	gridHeight   = 720
+	cellSize     = 1
 	clickSize    = 20
 )
 

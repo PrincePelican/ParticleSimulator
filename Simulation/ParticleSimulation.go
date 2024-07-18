@@ -3,8 +3,8 @@ package simulation
 import particles "FallingSand/Particles"
 
 const (
-	gridWidth  = 640
-	gridHeight = 360
+	gridWidth  = 1280
+	gridHeight = 720
 )
 
 type Simulation struct {
@@ -45,16 +45,15 @@ func (s *Simulation) NextStep() []particles.MovedParticle {
 
 func (s *Simulation) handleCell(x int, y int) *particles.MovedParticle {
 	if s.grid[x][y].Type != particles.EMPTY {
-
 		if s.grid[x][y+1].Type == particles.EMPTY {
 			s.grid[x][y], s.grid[x][y+1] = s.grid[x][y+1], s.grid[x][y]
 			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, y), CurrentPosition: *particles.NewPoint(x, y+1)}
 		} else if s.grid[x-1][y+1].Type == particles.EMPTY {
-			s.grid[x-1][y], s.grid[x][y+1] = s.grid[x-1][y+1], s.grid[x][y]
-			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x-1, y), CurrentPosition: *particles.NewPoint(x-1, y+1)}
+			s.grid[x][y], s.grid[x-1][y+1] = s.grid[x-1][y+1], s.grid[x][y]
+			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, y), CurrentPosition: *particles.NewPoint(x-1, y+1)}
 		} else if s.grid[x+1][y+1].Type == particles.EMPTY {
-			s.grid[x+1][y], s.grid[x][y+1] = s.grid[x+1][y+1], s.grid[x][y]
-			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x+1, y), CurrentPosition: *particles.NewPoint(x+1, y+1)}
+			s.grid[x][y], s.grid[x+1][y+1] = s.grid[x+1][y+1], s.grid[x][y]
+			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, y), CurrentPosition: *particles.NewPoint(x+1, y+1)}
 		}
 
 	}
