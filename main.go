@@ -1,49 +1,53 @@
 package main
 
 import (
-	"FallingSand/sandsimulation"
+	particles "FallingSand/Particles"
+	simulation "FallingSand/Simulation"
 	"image/color"
 	"log"
 	"math/rand"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 const (
-	screenWidth  = 1280
-	screenHeight = 720
-	gridWidth    = 320
-	gridHeight   = 180
-	cellSize     = 4
-	clickSize    = 10
+	screenWidth  = 1920
+	screenHeight = 1080
+	gridWidth    = 640
+	gridHeight   = 360
+	cellSize     = 3
+	clickSize    = 20
 )
 
 type Game struct {
-	grid       [gridWidth][gridHeight]bool
-	imageCache *ebiten.Image
-	gridInfo   chan [gridWidth][gridHeight]bool
+	imageCache     *ebiten.Image
+	simulation     simulation.Simulation
+	movedParticles []particles.MovedParticle
 }
 
 func (g *Game) Update() error {
+	g.movedParticles = g.simulation.NextStep()
 
-	g.grid = <-g.gridInfo
+	g.HandleInput()
 
+	return nil
+}
+
+func (g *Game) HandleInput() {
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		var createdParticles []particles.Particle
 		mx, my := ebiten.CursorPosition()
 		gridX, gridY := mx/cellSize, my/cellSize
-		if gridX-clickSize >= 0 && gridX+clickSize < gridWidth && gridY-clickSize >= 0 && gridY+clickSize < gridHeight {
+		if gridX >= 0 && gridX+clickSize < gridWidth && gridY >= 0 && gridY+clickSize < gridHeight {
 			for x := gridX; x < gridX+clickSize; x++ {
 				for y := gridY; y < gridY+clickSize; y++ {
-					g.grid[x][y] = true
+					createdParticles = append(createdParticles, *particles.NewParticle(x, y))
 				}
 			}
 		}
+		g.simulation.AddParticles(createdParticles)
 	}
-	go sandsimulation.ContinueFall(g.grid, g.gridInfo)
-
-	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -51,16 +55,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.imageCache = ebiten.NewImage(screenWidth, screenHeight)
 	}
 
-	g.imageCache.Clear()
+	g.DrawGrid()
 
-	for x := 0; x < gridWidth; x++ {
-		for y := 0; y < gridHeight; y++ {
-			if g.grid[x][y] {
-				vector.DrawFilledRect(g.imageCache, float32(x*cellSize), float32(y*cellSize), cellSize, cellSize, color.RGBA{255, 215, 0, 1}, true)
-			}
-		}
-	}
 	screen.DrawImage(g.imageCache, nil)
+}
+
+func (g *Game) DrawGrid() {
+	for x := 0; x < len(g.movedParticles); x++ {
+		g.imageCache.Set(g.movedParticles[x].CurrentPosition.X*cellSize, g.movedParticles[x].CurrentPosition.Y*cellSize, color.RGBA{255, 215, 0, 255})
+		g.imageCache.Set(g.movedParticles[x].PreviousPosition.X*cellSize, g.movedParticles[x].PreviousPosition.Y*cellSize, color.RGBA{0, 0, 0, 255})
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -71,9 +75,9 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Falling Sand")
-	gridChannel := make(chan [gridWidth][gridHeight]bool)
-	game := &Game{gridInfo: gridChannel}
-	go sandsimulation.ContinueFall(game.grid, game.gridInfo)
+	simulation := simulation.NewSimulation()
+	simulation.Initialize()
+	game := &Game{simulation: *simulation}
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}

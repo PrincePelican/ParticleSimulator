@@ -1,15 +1,15 @@
 package sandsimulation
 
 const (
-	screenWidth  = 1280
-	screenHeight = 720
-	gridWidth    = 320
-	gridHeight   = 180
-	cellSize     = 4
-	clickSize    = 10
+	screenWidth  = 1920
+	screenHeight = 1080
+	gridWidth    = 640
+	gridHeight   = 360
+	cellSize     = 3
+	clickSize    = 20
 )
 
-func ContinueFall(sandGrid [gridWidth][gridHeight]bool, gridInfo chan [gridWidth][gridHeight]bool) {
+func ContinueFall(sandGrid [gridWidth][gridHeight]bool, gridInfo chan *[gridWidth][gridHeight]bool) {
 	for y := len(sandGrid[0]) - 2; y >= 0; y-- {
 		for x := 1; x < len(sandGrid)-1; x++ {
 			if sandGrid[x][y] && !sandGrid[x][y+1] {
@@ -26,5 +26,15 @@ func ContinueFall(sandGrid [gridWidth][gridHeight]bool, gridInfo chan [gridWidth
 			}
 		}
 	}
-	gridInfo <- sandGrid
+
+	gridInfo <- &sandGrid
+}
+
+func CheckUnmovableSand(sandGrid [gridWidth][gridHeight]bool, yAxisToCheck int) int {
+	for x := 1; x < len(sandGrid)-1; x++ {
+		if !sandGrid[x][yAxisToCheck] {
+			return yAxisToCheck
+		}
+	}
+	return yAxisToCheck + 1
 }
