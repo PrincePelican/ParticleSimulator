@@ -1,15 +1,15 @@
 package particles
 
-type Point struct {
+type Vector2D struct {
 	X, Y int
 }
 
 type MovedParticle struct {
-	PreviousPosition, CurrentPosition Point
+	PreviousPosition, CurrentPosition Vector2D
 	Type                              ParticleType
 }
 
-func NewMovedParticle(PreviousPosition Point, CurrentPosition Point, Type ParticleType) *MovedParticle {
+func NewMovedParticle(PreviousPosition Vector2D, CurrentPosition Vector2D, Type ParticleType) *MovedParticle {
 	return &MovedParticle{
 		PreviousPosition: PreviousPosition,
 		CurrentPosition:  CurrentPosition,
@@ -17,17 +17,17 @@ func NewMovedParticle(PreviousPosition Point, CurrentPosition Point, Type Partic
 	}
 }
 
-func NewPoint(x int, y int) *Point {
-	return &Point{
+func NewPoint(x int, y int) *Vector2D {
+	return &Vector2D{
 		X: x,
 		Y: y,
 	}
 }
 
 type Particle struct {
-	Position Point
+	Position Vector2D
 	Gravity  int
-	Velocity int
+	Velocity Vector2D
 	Type     ParticleType
 }
 
@@ -36,7 +36,7 @@ func NewParticle(xPosition int, yPosition int, Type ParticleType) *Particle {
 	return &Particle{
 		Position: *position,
 		Type:     Type,
-		Velocity: 1,
+		Velocity: *NewPoint(10, 1),
 		Gravity:  1,
 	}
 }

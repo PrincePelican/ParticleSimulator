@@ -53,8 +53,8 @@ func (g *Game) HandleInput() {
 		mx, my := ebiten.CursorPosition()
 		gridX, gridY := mx/cellSize, my/cellSize
 		if gridX >= 0 && gridX+clickSize < gridWidth && gridY >= 0 && gridY+clickSize < gridHeight {
-			for x := gridX + 1; x < gridX+clickSize; x += rand.Intn(5) + 1 {
-				for y := gridY; y < gridY+clickSize; y += rand.Intn(5) + 1 {
+			for x := gridX + 1; x < gridX+clickSize; x += rand.Intn(10) + 1 {
+				for y := gridY; y < gridY+clickSize; y += rand.Intn(10) + 1 {
 					createdParticles = append(createdParticles, *particles.NewParticle(x, y, particles.WATER))
 				}
 			}

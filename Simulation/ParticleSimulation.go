@@ -59,11 +59,11 @@ func (s *Simulation) handleSandParticle(x int, y int) *particles.MovedParticle {
 		if s.grid[x][y+1].Type == particles.EMPTY {
 			return s.handleDownMove(x, y)
 		} else if s.grid[x-1][y+1].Type == particles.EMPTY {
-			s.grid[x][y], s.grid[x-1][y+1] = s.grid[x-1][y+1], s.grid[x][y]
-			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, y), CurrentPosition: *particles.NewPoint(x-1, y+1)}
+			return s.handleDiagonalLeft(x, y)
 		} else if s.grid[x+1][y+1].Type == particles.EMPTY {
-			s.grid[x][y], s.grid[x+1][y+1] = s.grid[x+1][y+1], s.grid[x][y]
-			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, y), CurrentPosition: *particles.NewPoint(x+1, y+1)}
+			return s.handleDiagonalright(x, y)
+		} else {
+			s.grid[x][y].Velocity.Y = 1
 		}
 
 	}
@@ -75,15 +75,13 @@ func (s *Simulation) handleWaterParticle(x int, y int) *particles.MovedParticle 
 		if s.grid[x][y+1].Type == particles.EMPTY {
 			return s.handleDownMove(x, y)
 		} else if s.grid[x-1][y+1].Type == particles.EMPTY {
-			s.grid[x][y], s.grid[x-1][y+1] = s.grid[x-1][y+1], s.grid[x][y]
-			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, y), CurrentPosition: *particles.NewPoint(x-1, y+1)}
+			return s.handleDiagonalLeft(x, y)
 		} else if s.grid[x+1][y+1].Type == particles.EMPTY {
-			s.grid[x][y], s.grid[x+1][y+1] = s.grid[x+1][y+1], s.grid[x][y]
-			return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, y), CurrentPosition: *particles.NewPoint(x+1, y+1)}
-		} else if s.grid[x+1][y].Type == particles.EMPTY {
-			return s.handleMoveRight(x, y)
+			return s.handleDiagonalright(x, y)
 		} else if s.grid[x-1][y].Type == particles.EMPTY {
 			return s.handleMoveLeft(x, y)
+		} else if s.grid[x+1][y].Type == particles.EMPTY {
+			return s.handleMoveRight(x, y)
 		}
 
 	}
@@ -93,38 +91,72 @@ func (s *Simulation) handleWaterParticle(x int, y int) *particles.MovedParticle 
 func (s *Simulation) handleDownMove(x int, y int) *particles.MovedParticle {
 	startY := y
 	particle := s.grid[x][y]
-	for ; y < startY+particle.Velocity && y < gridHeight-1; y++ {
+	for ; y < startY+particle.Velocity.Y && y < gridHeight-1; y++ {
 		if s.grid[x][y+1].Type != particles.EMPTY {
 			break
 		}
 	}
 	s.grid[x][startY], s.grid[x][y] = s.grid[x][y], s.grid[x][startY]
-	s.grid[x][y].Velocity += particle.Gravity
+	s.grid[x][y].Velocity.Y += particle.Gravity
 	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, startY), CurrentPosition: *particles.NewPoint(x, y)}
 }
 
 func (s *Simulation) handleMoveRight(x int, y int) *particles.MovedParticle {
 	startX := x
 	particle := s.grid[x][y]
-	for ; x < startX+particle.Velocity && x < gridWidth-1; x++ {
+	for ; x < startX+particle.Velocity.X && x < gridWidth-1; x++ {
 		if s.grid[x+1][y].Type != particles.EMPTY {
 			break
 		}
 	}
 	s.grid[startX][y], s.grid[x][y] = s.grid[x][y], s.grid[startX][y]
-	//s.grid[x][y].Velocity += particle.Gravity
 	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, y), CurrentPosition: *particles.NewPoint(x, y)}
 }
 
 func (s *Simulation) handleMoveLeft(x int, y int) *particles.MovedParticle {
 	startX := x
 	particle := s.grid[x][y]
-	for ; x > startX-particle.Velocity && x > 1; x-- {
+	for ; x > startX-particle.Velocity.X && x > 1; x-- {
 		if s.grid[x-1][y].Type != particles.EMPTY {
 			break
 		}
 	}
 	s.grid[startX][y], s.grid[x][y] = s.grid[x][y], s.grid[startX][y]
-	//s.grid[x][y].Velocity += particle.Gravity
 	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, y), CurrentPosition: *particles.NewPoint(x, y)}
+}
+
+func (s *Simulation) handleDiagonalLeft(x int, y int) *particles.MovedParticle {
+	startX := x
+	startY := y
+	particle := s.grid[x][y]
+
+	for i := 1; i < particle.Velocity.Y && y+i < gridHeight-1 && x-i > 1; i++ {
+		x -= 1
+		y += 1
+		if s.grid[x-1][y+1].Type != particles.EMPTY {
+			break
+		}
+	}
+
+	s.grid[startX][startY], s.grid[x][y] = s.grid[x][y], s.grid[startX][startY]
+	s.grid[x][y].Velocity.Y += particle.Gravity
+	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y)}
+}
+
+func (s *Simulation) handleDiagonalright(x int, y int) *particles.MovedParticle {
+	startX := x
+	startY := y
+	particle := s.grid[x][y]
+
+	for i := 1; i < particle.Velocity.Y && y+i < gridHeight-1 && x+i < gridWidth-1; i++ {
+		x += 1
+		y += 1
+		if s.grid[x+1][y+1].Type != particles.EMPTY {
+			break
+		}
+	}
+
+	s.grid[startX][startY], s.grid[x][y] = s.grid[x][y], s.grid[startX][startY]
+	s.grid[x][y].Velocity.Y += particle.Gravity
+	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y)}
 }

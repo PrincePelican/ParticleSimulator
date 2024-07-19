@@ -1,11 +1,11 @@
 package sandsimulation
 
 const (
-	screenWidth  = 1920
-	screenHeight = 1080
+	screenWidth  = 1280
+	screenHeight = 720
 	gridWidth    = 640
 	gridHeight   = 360
-	cellSize     = 3
+	cellSize     = 2
 	clickSize    = 20
 )
 
