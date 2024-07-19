@@ -1,13 +1,20 @@
 package particles
 
-import "image/color"
-
 type Point struct {
 	X, Y int
 }
 
 type MovedParticle struct {
 	PreviousPosition, CurrentPosition Point
+	Type                              ParticleType
+}
+
+func NewMovedParticle(PreviousPosition Point, CurrentPosition Point, Type ParticleType) *MovedParticle {
+	return &MovedParticle{
+		PreviousPosition: PreviousPosition,
+		CurrentPosition:  CurrentPosition,
+		Type:             Type,
+	}
 }
 
 func NewPoint(x int, y int) *Point {
@@ -19,17 +26,18 @@ func NewPoint(x int, y int) *Point {
 
 type Particle struct {
 	Position Point
-	Color    color.RGBA
-	Gravity  float32
-	Velocity float32
+	Gravity  int
+	Velocity int
 	Type     ParticleType
 }
 
-func NewParticle(xPosition int, yPosition int) *Particle {
+func NewParticle(xPosition int, yPosition int, Type ParticleType) *Particle {
 	position := NewPoint(xPosition, yPosition)
 	return &Particle{
 		Position: *position,
-		Type:     SAND,
+		Type:     Type,
+		Velocity: 1,
+		Gravity:  1,
 	}
 }
 
@@ -38,4 +46,5 @@ type ParticleType int
 const (
 	EMPTY ParticleType = 0
 	SAND  ParticleType = 1
+	WATER ParticleType = 2
 )
