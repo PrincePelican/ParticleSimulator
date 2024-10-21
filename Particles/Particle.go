@@ -1,19 +1,21 @@
-package particles
+package partjicles
 
 type Vector2D struct {
 	X, Y int
 }
 
-type MovedParticle struct {
+type ChangeParticle struct {
 	PreviousPosition, CurrentPosition Vector2D
 	Type                              ParticleType
+	ChangeType                        ChangeType
 }
 
-func NewMovedParticle(PreviousPosition Vector2D, CurrentPosition Vector2D, Type ParticleType) *MovedParticle {
-	return &MovedParticle{
+func NewChangeParticle(PreviousPosition Vector2D, CurrentPosition Vector2D, Type ParticleType, ChangeType ChangeType) *ChangeParticle {
+	return &ChangeParticle{
 		PreviousPosition: PreviousPosition,
 		CurrentPosition:  CurrentPosition,
 		Type:             Type,
+		ChangeType:       ChangeType,
 	}
 }
 
@@ -29,6 +31,7 @@ type Particle struct {
 	Gravity   int
 	Velocity  Vector2D
 	Type      ParticleType
+	FlameTime int
 	FlameRate int
 }
 
@@ -38,8 +41,22 @@ func NewParticle(xPosition int, yPosition int, Type ParticleType) *Particle {
 	return &Particle{
 		Position:  *position,
 		Type:      Type,
-		Velocity:  *NewPoint(5, 5),
+		Velocity:  *NewPoint(10, 5),
 		Gravity:   1,
+		FlameTime: 5,
+		FlameRate: getFlameRate(Type),
+	}
+}
+
+func NewSmokeParticle(xPosition int, yPosition int, Type ParticleType) *Particle {
+	position := NewPoint(xPosition, yPosition)
+
+	return &Particle{
+		Position:  *position,
+		Type:      Type,
+		Velocity:  *NewPoint(30, 2),
+		Gravity:   0,
+		FlameTime: 0,
 		FlameRate: getFlameRate(Type),
 	}
 }
@@ -65,4 +82,13 @@ const (
 	WATER ParticleType = 2
 	WOOD  ParticleType = 3
 	FLAME ParticleType = 4
+	SMOKE ParticleType = 5
+)
+
+type ChangeType int
+
+const (
+	MOVE   ChangeType = 0
+	CHANGE ChangeType = 1
+	VANISH ChangeType = 2
 )

@@ -14,16 +14,16 @@ import (
 const (
 	screenWidth  = 1280
 	screenHeight = 720
-	gridWidth    = 1280
-	gridHeight   = 720
-	cellSize     = 1
+	gridWidth    = 720
+	gridHeight   = 360
+	cellSize     = 2
 	clickSize    = 50
 )
 
 type Game struct {
 	imageCache          *ebiten.Image
 	simulation          simulation.Simulation
-	movedParticles      []particles.MovedParticle
+	movedParticles      []particles.ChangeParticle
 	currentParticleType particles.ParticleType
 }
 
@@ -47,6 +47,8 @@ func (g *Game) HandleInput() {
 		g.currentParticleType = particles.EMPTY
 	} else if ebiten.IsKeyPressed(ebiten.Key5) {
 		g.currentParticleType = particles.FLAME
+	} else if ebiten.IsKeyPressed(ebiten.Key6) {
+		g.currentParticleType = particles.SMOKE
 	}
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
@@ -89,6 +91,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 func (g *Game) DrawGrid() {
 	for x := 0; x < len(g.movedParticles); x++ {
 		particleColor := color.RGBA{28, 107, 160, 1}
+		emptyColor := color.RGBA{0, 0, 0, 255}
 		switch g.movedParticles[x].Type {
 		case particles.SAND:
 			particleColor = color.RGBA{255, 215, 0, 255} // Yellow for Sand
@@ -98,18 +101,27 @@ func (g *Game) DrawGrid() {
 			particleColor = color.RGBA{100, 25, 0, 255} // Brown for Wood
 		case particles.FLAME:
 			particleColor = color.RGBA{255, 165, 0, 255} // Brown for Wood
+		case particles.SMOKE:
+			particleColor = color.RGBA{128, 128, 128, 255} // Grey for Smoke
 		default:
 			particleColor = color.RGBA{0, 0, 0, 255} // Default to black
 		}
-		if g.movedParticles[x].Type != particles.FLAME {
-			g.imageCache.Set(g.movedParticles[x].PreviousPosition.X*cellSize, g.movedParticles[x].PreviousPosition.Y*cellSize, color.RGBA{0, 0, 0, 255})
-			g.imageCache.Set(g.movedParticles[x].CurrentPosition.X*cellSize, g.movedParticles[x].CurrentPosition.Y*cellSize, particleColor)
-		} else {
-			g.imageCache.Set(g.movedParticles[x].PreviousPosition.X*cellSize, g.movedParticles[x].PreviousPosition.Y*cellSize, particleColor)
-			g.imageCache.Set(g.movedParticles[x].CurrentPosition.X*cellSize, g.movedParticles[x].CurrentPosition.Y*cellSize, particleColor)
-		}
+		g.changeParticle(g.movedParticles[x], particleColor, emptyColor)
 
 	}
+}
+
+func (g *Game) changeParticle(changeParticle particles.ChangeParticle, color color.RGBA, emptyColor color.RGBA) {
+	switch changeParticle.ChangeType {
+	case particles.MOVE:
+		g.imageCache.Set(changeParticle.PreviousPosition.X*cellSize, changeParticle.PreviousPosition.Y*cellSize, emptyColor)
+		g.imageCache.Set(changeParticle.CurrentPosition.X*cellSize, changeParticle.CurrentPosition.Y*cellSize, color)
+	case particles.VANISH:
+		g.imageCache.Set(changeParticle.CurrentPosition.X*cellSize, changeParticle.CurrentPosition.Y*cellSize, emptyColor)
+	case particles.CHANGE:
+		g.imageCache.Set(changeParticle.CurrentPosition.X*cellSize, changeParticle.CurrentPosition.Y*cellSize, color)
+	}
+
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {

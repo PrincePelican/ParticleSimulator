@@ -3,17 +3,18 @@ package simulation
 import (
 	particles "FallingSand/Particles"
 	flameparticle "FallingSand/Simulation/FlameParticle"
+	"math/rand"
 )
 
 const (
-	gridWidth  = 1280
-	gridHeight = 720
+	gridWidth  = 720
+	gridHeight = 360
 )
 
 type Simulation struct {
 	grid           [][]particles.Particle
-	buffer         [][]particles.Particle
-	addedParticles []particles.MovedParticle
+	addedParticles []particles.ChangeParticle
+	indexes        []particles.Vector2D
 }
 
 func NewSimulation() *Simulation {
@@ -25,6 +26,12 @@ func NewSimulation() *Simulation {
 func (s *Simulation) Initialize() {
 	for i := range s.grid {
 		s.grid[i] = make([]particles.Particle, gridHeight)
+		for j := range s.grid[i] {
+			if j < gridHeight-1 && i < gridWidth-1 {
+				s.indexes = append(s.indexes, particles.Vector2D{X: i, Y: j})
+			}
+
+		}
 	}
 }
 
@@ -33,7 +40,7 @@ func (s *Simulation) AddParticles(newParticlesList []particles.Particle) {
 		particle := newParticlesList[x]
 		s.grid[particle.Position.X][particle.Position.Y] = particle
 
-		addedParticle := &particles.MovedParticle{
+		addedParticle := &particles.ChangeParticle{
 			PreviousPosition: *particles.NewPoint(particle.Position.X, particle.Position.Y),
 			CurrentPosition:  *particles.NewPoint(particle.Position.X, particle.Position.Y),
 			Type:             particle.Type,
@@ -42,58 +49,54 @@ func (s *Simulation) AddParticles(newParticlesList []particles.Particle) {
 	}
 }
 
-func (s *Simulation) NextStep() []particles.MovedParticle {
-	var movedParticles []particles.MovedParticle = s.addedParticles
-	s.addedParticles = make([]particles.MovedParticle, 0)
+func (s *Simulation) randomizeListOfIndexes() []particles.Vector2D {
+	var indexes []particles.Vector2D = s.indexes
+	rand.Shuffle(len(indexes), func(x, y int) {
+		indexes[x], indexes[y] = indexes[y], indexes[x]
+	})
+	return indexes
+}
 
-	for y := gridHeight - 2; y >= 0; y-- {
-		for x := 1; x < gridWidth-1; x++ {
-			var movedParticle *particles.MovedParticle
-			var Type particles.ParticleType = particles.EMPTY
-			switch s.grid[x][y].Type {
-			case particles.SAND:
-				movedParticle = s.handleSandParticle(x, y)
-				Type = particles.SAND
-			case particles.WATER:
-				movedParticle = s.handleWaterParticle(x, y)
-				Type = particles.WATER
-			case particles.FLAME:
-				movedParticle = s.handleFlameParticle(x, y)
-				if movedParticle != nil {
-					movedParticle.Type = Type
-					movedParticles = append(movedParticles, *movedParticle)
-				}
-				movedParticle = s.handleFlameParticle(x, y)
-				if movedParticle != nil {
-					movedParticle.Type = Type
-					movedParticles = append(movedParticles, *movedParticle)
-				}
-				movedParticle = s.handleFlameParticle(x, y)
-				if movedParticle != nil {
-					movedParticle.Type = Type
-					movedParticles = append(movedParticles, *movedParticle)
-				}
-				movedParticle = s.handleFlameParticle(x, y)
-				Type = particles.FLAME
-			}
+func (s *Simulation) NextStep() []particles.ChangeParticle {
+	var movedParticles []particles.ChangeParticle = s.addedParticles
+	s.addedParticles = make([]particles.ChangeParticle, 0)
+	var indexTmp = s.randomizeListOfIndexes()
 
-			if movedParticle != nil {
-				movedParticle.Type = Type
-				movedParticles = append(movedParticles, *movedParticle)
-			}
+	for x := 0; x < len(indexTmp); x++ {
+		var changesParticle []particles.ChangeParticle
+		switch s.grid[indexTmp[x].X][indexTmp[x].Y].Type {
+		case particles.SAND:
+			changesParticle = s.handleSandParticle(indexTmp[x].X, indexTmp[x].Y)
+		case particles.WATER:
+			changesParticle = s.handleWaterParticle(indexTmp[x].X, indexTmp[x].Y)
+		case particles.FLAME:
+			changesParticle = s.handleFlameParticle(indexTmp[x].X, indexTmp[x].Y)
+		case particles.SMOKE:
+			changesParticle = s.handleSmokeParticle(indexTmp[x].X, indexTmp[x].Y)
+		}
+
+		if changesParticle != nil {
+			movedParticles = append(movedParticles, changesParticle...)
 		}
 	}
 
 	return movedParticles
 }
 
-func (s *Simulation) handleSandParticle(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleSandParticle(x int, y int) []particles.ChangeParticle {
+	var changes []particles.ChangeParticle
 	if s.grid[x][y+1].Type == particles.EMPTY {
-		return s.handleDownMove(x, y)
+		change := s.handleMoveDown(x, y)
+		change.Type = particles.SAND
+		return append(changes, *change)
 	} else if s.grid[x-1][y+1].Type == particles.EMPTY {
-		return s.handleDiagonalLeftDown(x, y)
+		change := s.handleDiagonalLeftDown(x, y)
+		change.Type = particles.SAND
+		return append(changes, *change)
 	} else if s.grid[x+1][y+1].Type == particles.EMPTY {
-		return s.handleDiagonalRigthDown(x, y)
+		change := s.handleDiagonalRigthDown(x, y)
+		change.Type = particles.SAND
+		return append(changes, *change)
 	} else {
 		s.grid[x][y].Velocity.Y = 1
 	}
@@ -101,38 +104,93 @@ func (s *Simulation) handleSandParticle(x int, y int) *particles.MovedParticle {
 	return nil
 }
 
-func (s *Simulation) handleWaterParticle(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleWaterParticle(x int, y int) []particles.ChangeParticle {
+	var changes []particles.ChangeParticle
 	if s.grid[x][y+1].Type == particles.EMPTY {
-		return s.handleDownMove(x, y)
+		change := s.handleMoveDown(x, y)
+		change.Type = particles.WATER
+		return append(changes, *change)
 	} else if s.grid[x-1][y+1].Type == particles.EMPTY {
-		return s.handleDiagonalLeftDown(x, y)
+		change := s.handleDiagonalLeftDown(x, y)
+		change.Type = particles.WATER
+		return append(changes, *change)
 	} else if s.grid[x+1][y+1].Type == particles.EMPTY {
-		return s.handleDiagonalRigthDown(x, y)
+		change := s.handleDiagonalRigthDown(x, y)
+		change.Type = particles.WATER
+		return append(changes, *change)
 	} else if s.grid[x-1][y].Type == particles.EMPTY {
-		return s.handleMoveLeft(x, y)
+		change := s.handleMoveLeft(x, y)
+		change.Type = particles.WATER
+		return append(changes, *change)
 	} else if s.grid[x+1][y].Type == particles.EMPTY {
-		return s.handleMoveRight(x, y)
+		change := s.handleMoveRight(x, y)
+		change.Type = particles.WATER
+		return append(changes, *change)
 	}
 	return nil
 }
 
-func (s *Simulation) handleFlameParticle(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleFlameParticle(x int, y int) []particles.ChangeParticle {
+	var changes []particles.ChangeParticle
 	if s.grid[x][y-1].FlameRate != 0 {
-		return flameparticle.HandleFlameUp(x, y, s.grid)
+		change := flameparticle.HandleFlameUp(x, y, s.grid)
+		if change != nil {
+			changes = append(changes, *change)
+		}
 	}
 	if s.grid[x][y+1].FlameRate != 0 {
-		return flameparticle.HandleFlameDown(x, y, s.grid)
+		change := flameparticle.HandleFlameDown(x, y, s.grid)
+		if change != nil {
+			changes = append(changes, *change)
+		}
 	}
 	if s.grid[x-1][y].FlameRate != 0 {
-		return flameparticle.HandleFlameLeft(x, y, s.grid)
+		change := flameparticle.HandleFlameLeft(x, y, s.grid)
+		if change != nil {
+			changes = append(changes, *change)
+		}
 	}
 	if s.grid[x+1][y].FlameRate != 0 {
-		return flameparticle.HandleFlameRight(x, y, s.grid)
+		change := flameparticle.HandleFlameRight(x, y, s.grid)
+		if change != nil {
+			changes = append(changes, *change)
+		}
+	}
+	change := flameparticle.TickFlameTime(&s.grid[x][y], s.grid)
+	if change != nil {
+		changes = append(changes, *change)
+	}
+
+	return changes
+}
+
+func (s *Simulation) handleSmokeParticle(x int, y int) []particles.ChangeParticle {
+	var changes []particles.ChangeParticle
+	if s.grid[x][y-1].Type == particles.EMPTY {
+		change := s.handleMoveUp(x, y)
+		change.Type = particles.SMOKE
+		return append(changes, *change)
+	} else if s.grid[x-1][y-1].Type == particles.EMPTY {
+		change := s.handleDiagonalLeftUp(x, y)
+		change.Type = particles.SMOKE
+		return append(changes, *change)
+	} else if s.grid[x+1][y-1].Type == particles.EMPTY {
+		change := s.handleDiagonalRightUp(x, y)
+		change.Type = particles.SMOKE
+		return append(changes, *change)
+	} else if s.grid[x-1][y].Type == particles.EMPTY {
+		change := s.handleMoveLeft(x, y)
+		change.Type = particles.SMOKE
+		return append(changes, *change)
+	} else if s.grid[x+1][y].Type == particles.EMPTY {
+		change := s.handleMoveRight(x, y)
+		change.Type = particles.SMOKE
+		return append(changes, *change)
 	}
 	return nil
 }
 
-func (s *Simulation) handleDownMove(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleMoveDown(x int, y int) *particles.ChangeParticle {
 	startY := y
 	particle := s.grid[x][y]
 	for ; y < startY+particle.Velocity.Y && y < gridHeight-1; y++ {
@@ -142,10 +200,23 @@ func (s *Simulation) handleDownMove(x int, y int) *particles.MovedParticle {
 	}
 	s.grid[x][startY], s.grid[x][y] = s.grid[x][y], s.grid[x][startY]
 	s.grid[x][y].Velocity.Y += particle.Gravity
-	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(x, startY), CurrentPosition: *particles.NewPoint(x, y)}
+	return &particles.ChangeParticle{PreviousPosition: *particles.NewPoint(x, startY), CurrentPosition: *particles.NewPoint(x, y), ChangeType: particles.MOVE}
 }
 
-func (s *Simulation) handleMoveRight(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleMoveUp(x int, y int) *particles.ChangeParticle {
+	startY := y
+	particle := s.grid[x][y]
+	for ; y > startY-particle.Velocity.Y && y > 1; y-- {
+		if s.grid[x][y-1].Type != particles.EMPTY {
+			break
+		}
+	}
+	s.grid[x][startY], s.grid[x][y] = s.grid[x][y], s.grid[x][startY]
+	s.grid[x][y].Velocity.Y += particle.Gravity
+	return &particles.ChangeParticle{PreviousPosition: *particles.NewPoint(x, startY), CurrentPosition: *particles.NewPoint(x, y), ChangeType: particles.MOVE}
+}
+
+func (s *Simulation) handleMoveRight(x int, y int) *particles.ChangeParticle {
 	startX := x
 	particle := s.grid[x][y]
 	for ; x < startX+particle.Velocity.X && x < gridWidth-1; x++ {
@@ -154,10 +225,10 @@ func (s *Simulation) handleMoveRight(x int, y int) *particles.MovedParticle {
 		}
 	}
 	s.grid[startX][y], s.grid[x][y] = s.grid[x][y], s.grid[startX][y]
-	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, y), CurrentPosition: *particles.NewPoint(x, y)}
+	return &particles.ChangeParticle{PreviousPosition: *particles.NewPoint(startX, y), CurrentPosition: *particles.NewPoint(x, y), ChangeType: particles.MOVE}
 }
 
-func (s *Simulation) handleMoveLeft(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleMoveLeft(x int, y int) *particles.ChangeParticle {
 	startX := x
 	particle := s.grid[x][y]
 	for ; x > startX-particle.Velocity.X && x > 1; x-- {
@@ -166,10 +237,10 @@ func (s *Simulation) handleMoveLeft(x int, y int) *particles.MovedParticle {
 		}
 	}
 	s.grid[startX][y], s.grid[x][y] = s.grid[x][y], s.grid[startX][y]
-	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, y), CurrentPosition: *particles.NewPoint(x, y)}
+	return &particles.ChangeParticle{PreviousPosition: *particles.NewPoint(startX, y), CurrentPosition: *particles.NewPoint(x, y), ChangeType: particles.MOVE}
 }
 
-func (s *Simulation) handleDiagonalLeftDown(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleDiagonalLeftDown(x int, y int) *particles.ChangeParticle {
 	startX := x
 	startY := y
 	particle := s.grid[x][y]
@@ -184,10 +255,10 @@ func (s *Simulation) handleDiagonalLeftDown(x int, y int) *particles.MovedPartic
 
 	s.grid[startX][startY], s.grid[x][y] = s.grid[x][y], s.grid[startX][startY]
 	s.grid[x][y].Velocity.Y += particle.Gravity
-	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y)}
+	return &particles.ChangeParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y), ChangeType: particles.MOVE}
 }
 
-func (s *Simulation) handleDiagonalRigthDown(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleDiagonalRigthDown(x int, y int) *particles.ChangeParticle {
 	startX := x
 	startY := y
 	particle := s.grid[x][y]
@@ -202,10 +273,10 @@ func (s *Simulation) handleDiagonalRigthDown(x int, y int) *particles.MovedParti
 
 	s.grid[startX][startY], s.grid[x][y] = s.grid[x][y], s.grid[startX][startY]
 	s.grid[x][y].Velocity.Y += particle.Gravity
-	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y)}
+	return &particles.ChangeParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y), ChangeType: particles.MOVE}
 }
 
-func (s *Simulation) handleDiagonalLeftUp(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleDiagonalLeftUp(x int, y int) *particles.ChangeParticle {
 	startX := x
 	startY := y
 	particle := s.grid[x][y]
@@ -220,10 +291,10 @@ func (s *Simulation) handleDiagonalLeftUp(x int, y int) *particles.MovedParticle
 
 	s.grid[startX][startY], s.grid[x][y] = s.grid[x][y], s.grid[startX][startY]
 	s.grid[x][y].Velocity.Y += particle.Gravity
-	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y)}
+	return &particles.ChangeParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y), ChangeType: particles.MOVE}
 }
 
-func (s *Simulation) handleDiagonalRightUp(x int, y int) *particles.MovedParticle {
+func (s *Simulation) handleDiagonalRightUp(x int, y int) *particles.ChangeParticle {
 	startX := x
 	startY := y
 	particle := s.grid[x][y]
@@ -238,5 +309,5 @@ func (s *Simulation) handleDiagonalRightUp(x int, y int) *particles.MovedParticl
 
 	s.grid[startX][startY], s.grid[x][y] = s.grid[x][y], s.grid[startX][startY]
 	s.grid[x][y].Velocity.Y += particle.Gravity
-	return &particles.MovedParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y)}
+	return &particles.ChangeParticle{PreviousPosition: *particles.NewPoint(startX, startY), CurrentPosition: *particles.NewPoint(x, y), ChangeType: particles.MOVE}
 }
