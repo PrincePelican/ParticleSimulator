@@ -43,7 +43,7 @@ func NewParticle(xPosition int, yPosition int, Type ParticleType) *Particle {
 		Type:      Type,
 		Velocity:  *NewPoint(10, 5),
 		Gravity:   1,
-		FlameTime: 5,
+		FlameTime: 30,
 		FlameRate: getFlameRate(Type),
 	}
 }
@@ -70,7 +70,7 @@ func getFlameRate(Type ParticleType) int {
 	case WATER:
 		return 0
 	case WOOD:
-		return 5
+		return 1
 	default:
 		return 0
 	}

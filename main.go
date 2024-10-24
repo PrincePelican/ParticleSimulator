@@ -3,6 +3,7 @@ package main
 import (
 	particles "FallingSand/Particles"
 	simulation "FallingSand/Simulation"
+	"fmt"
 	"image/color"
 	"log"
 	"math/rand"
@@ -12,12 +13,12 @@ import (
 )
 
 const (
-	screenWidth  = 1280
-	screenHeight = 720
-	gridWidth    = 720
-	gridHeight   = 360
-	cellSize     = 2
-	clickSize    = 50
+	screenWidth  = 2560
+	screenHeight = 1440
+	gridWidth    = 2560
+	gridHeight   = 1440
+	cellSize     = 1
+	clickSize    = 100
 )
 
 type Game struct {
@@ -25,6 +26,8 @@ type Game struct {
 	simulation          simulation.Simulation
 	movedParticles      []particles.ChangeParticle
 	currentParticleType particles.ParticleType
+	lastTime            time.Time
+	frameCounter        int16
 }
 
 func (g *Game) Update() error {
@@ -79,11 +82,19 @@ func (g *Game) HandleInput() {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	g.frameCounter++
 	if g.imageCache == nil {
 		g.imageCache = ebiten.NewImage(screenWidth, screenHeight)
 	}
 
 	g.DrawGrid()
+
+	sinceLast := time.Since(g.lastTime).Milliseconds()
+	if sinceLast > 1000 {
+		fmt.Printf("Fps:%v\n", g.frameCounter)
+		g.lastTime = time.Now()
+		g.frameCounter = 0
+	}
 
 	screen.DrawImage(g.imageCache, nil)
 }
@@ -135,6 +146,7 @@ func main() {
 	simulation := simulation.NewSimulation()
 	simulation.Initialize()
 	game := &Game{simulation: *simulation}
+	game.lastTime = time.Now()
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
